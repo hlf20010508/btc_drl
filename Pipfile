@@ -1,0 +1,12 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+okx = {git = "git+https://github.com/hlf20010508/okx.git"}
+pandas = "*"
+ta-lib = "*"
+torch = "*"
+
+[dev-packages]
