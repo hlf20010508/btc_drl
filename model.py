@@ -13,7 +13,10 @@ class GRUPPO(nn.Module):
         self.critic = nn.Linear(hidden_dim, 1)
 
     def forward(self, x, hidden_state):
-        out, hidden_state = self.gru(x, hidden_state)
+        # x: (batch_size, seq_len, input_dim)
+        # hidden_state: (num_layers, batch_size, hidden_dim)
+        # x may not full fill the batch, so we need to slice the hidden state
+        out, hidden_state = self.gru(x, hidden_state[:, : x.size(0), :])
         out = out[:, -1, :]
         action_probs = torch.softmax(self.actor(out), dim=-1)
         value = self.critic(out)
