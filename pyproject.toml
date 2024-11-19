@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "btc-drl"
+version = "0.1.0"
+description = "BTC deep reinforce learning with structured and unstructured data"
+authors = ["L-ING <hlf01@icloud.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+okx = {git = "https://github.com/hlf20010508/okx.git"}
+pandas = "^2.2.3"
+ta-lib = "^0.5.1"
+torch = "^2.5.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
