@@ -41,7 +41,7 @@ def run(
         for batch_x, _ in dataloader:
             batch_x = batch_x.to(device)
 
-            action_probs, values, hidden_state = model(batch_x, hidden_state.detach())
+            action_probs, values, hidden_state = model(batch_x, hidden_state)
 
             actions = torch.multinomial(action_probs, 1).squeeze(1)
 
