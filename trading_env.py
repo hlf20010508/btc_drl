@@ -13,14 +13,12 @@ class TradingEnv:
         self.entry_price = 0
         self.profit = 0
 
-        return self._get_state()
-
     def step(self, action):
         # action - 0: buy 1: hold 2: sell
         done = False
         reward = 0
 
-        current_price = self.data.iloc[self.current_step]["Close"]
+        current_price = self.data.iloc[self.current_step]
 
         if action == 0:
             if self.position == 0:
@@ -54,11 +52,4 @@ class TradingEnv:
         if self.current_step >= len(self.data):
             done = True
 
-        next_state = self._get_state()
-        return next_state, reward, done, self.profit
-
-    def _get_state(self):
-        if self.current_step < len(self.data):
-            return self.data.iloc[self.current_step].drop(columns=["Close"]).values
-        else:
-            return None
+        return reward, done, self.profit
