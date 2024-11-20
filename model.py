@@ -4,11 +4,18 @@ from torch import nn
 
 class GRUPPO(nn.Module):
     def __init__(
-        self, input_dim: int, hidden_dim: int, action_dim: int, num_layers: int
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        action_dim: int,
+        num_layers: int,
+        dropout=0.2,
     ):
         super(GRUPPO, self).__init__()
 
-        self.gru = nn.GRU(input_dim, hidden_dim, num_layers, batch_first=True)
+        self.gru = nn.GRU(
+            input_dim, hidden_dim, num_layers, batch_first=True, dropout=dropout
+        )
         self.actor = nn.Linear(hidden_dim, action_dim)
         self.critic = nn.Linear(hidden_dim, 1)
 

@@ -15,6 +15,7 @@ def run(
     hidden_dim=64,
     action_dim=3,
     num_layers=2,
+    dropout=0.2,
     learning_rate=0.001,
     gamma=0.99,
 ):
@@ -31,7 +32,7 @@ def run(
 
     input_dim = dataset.feature_num
 
-    model = GRUPPO(input_dim, hidden_dim, action_dim, num_layers).to(device)
+    model = GRUPPO(input_dim, hidden_dim, action_dim, num_layers, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     for epoch in range(epochs):
