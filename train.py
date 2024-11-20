@@ -48,7 +48,7 @@ def run(
 
             rewards = []
             for action in actions:
-                reward, done, profit = trading_env.step(action.item())
+                reward, done, assets = trading_env.step(action.item())
                 rewards.append(reward)
 
                 if done:
@@ -75,7 +75,7 @@ def run(
             optimizer.step()
 
         print(
-            f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Total Profit: {profit:.2f}"
+            f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Earnings: {(assets - 1) * 100:.2f}%"
         )
 
     if not os.path.exists("output"):
