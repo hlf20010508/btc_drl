@@ -17,13 +17,13 @@ class BTCDataset(Dataset):
         self.scale_info = self._load_scale_info(interval, start)
         self._preprocess_data()
         self.seq_len = seq_len
-        self.feature_num = self.data.shape[1] - 1
+        self.feature_num = self.data.shape[1]
 
     def __len__(self):
         return len(self.data) - self.seq_len
 
     def __getitem__(self, index: int):
-        x = self.data.iloc[index : index + self.seq_len].drop(columns=["Close"]).values
+        x = self.data.iloc[index : index + self.seq_len].values
         y = self.data.iloc[index + self.seq_len]["Close"]
 
         return torch.tensor(x, dtype=torch.float32), torch.tensor(
