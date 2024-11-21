@@ -28,7 +28,7 @@ def run(
 
     dataset = BTCDataset(seq_len, interval, start)
     dataloader = DataLoader(dataset, batch_size=batch_size)
-    trading_env = TradingEnv(dataset.data["Close"])
+    trading_env = TradingEnv(dataset.data["Close"][dataset.seq_len :])
 
     input_dim = dataset.feature_num
 
@@ -44,15 +44,14 @@ def run(
 
             action_probs, values, hidden_state = model(batch_x, hidden_state)
 
-            actions = torch.multinomial(action_probs, 1).squeeze(1)
-
             rewards = []
-            for action in actions:
-                reward, done, assets = trading_env.step(action.item())
+            actions = []
+            for action_prob in action_probs:
+                reward, assets, action = trading_env.step(action_prob.tolist())
                 rewards.append(reward)
+                actions.append(action)
 
-                if done:
-                    break
+            actions = torch.tensor(actions, dtype=torch.long).to(device)
 
             returns = []
             G = 0
@@ -84,4 +83,4 @@ def run(
 
 
 if __name__ == "__main__":
-    run(epochs=2, batch_size=32, seq_len=7)
+    run(epochs=10, batch_size=32, seq_len=24)

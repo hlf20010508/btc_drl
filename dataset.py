@@ -12,12 +12,19 @@ from features import (
 
 
 class BTCDataset(Dataset):
-    def __init__(self, seq_len: int, interval: str = "1H", start: str = "2020_01_01"):
+    def __init__(
+        self, seq_len: int, interval: str = "1H", start: str = "2020_01_01", features=[]
+    ):
         self.data = self._load_data(interval, start)
         self.scale_info = self._load_scale_info(interval, start)
         self._preprocess_data()
+        if features:
+            self.data = self.data.loc[:, features]
         self.seq_len = seq_len
-        self.feature_num = self.data.shape[1]
+
+    @property
+    def feature_num(self):
+        return self.data.shape[1]
 
     def __len__(self):
         return len(self.data) - self.seq_len
