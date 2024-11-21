@@ -27,7 +27,9 @@ def run(
     else:
         device = torch.device("cpu")
 
-    dataset = BTCDataset(seq_len, interval, start)
+    dataset = BTCDataset(
+        seq_len, interval, start, features=["Open", "High", "Low", "Close", "Volume"]
+    )
     dataloader = DataLoader(dataset, batch_size=batch_size)
     trading_env = TradingEnv(dataset.data["Close"][dataset.seq_len :])
 
