@@ -21,6 +21,7 @@ def run(
     gamma=0.99,
     features=[],
     should_draw=False,
+    trading_env=None,
 ):
     if not os.path.exists("output"):
         os.mkdir("output")
@@ -34,7 +35,10 @@ def run(
 
     dataset = BTCDataset(seq_len, interval, start, features)
     dataloader = DataLoader(dataset, batch_size=batch_size)
-    trading_env = TradingEnv(dataset.data["Close"][dataset.seq_len :])
+    if trading_env is None:
+        trading_env = TradingEnv(dataset.data["Close"][dataset.seq_len :])
+    else:
+        trading_env = trading_env(dataset.data["Close"][dataset.seq_len :])
 
     input_dim = dataset.feature_num
 
