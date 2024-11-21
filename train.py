@@ -21,6 +21,9 @@ def run(
     gamma=0.99,
     features=[],
 ):
+    if not os.path.exists("output"):
+        os.mkdir("output")
+
     if torch.cuda.is_available():
         device = torch.device("cuda")
     elif torch.backends.mps.is_available():
@@ -36,6 +39,9 @@ def run(
 
     model = GRUPPO(input_dim, hidden_dim, action_dim, num_layers, dropout).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    best_loss = None
+    best_earnings = None
 
     for epoch in range(epochs):
         trading_env.reset()
@@ -77,11 +83,19 @@ def run(
             f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Earnings: {(assets - 1) * 100:.2f}%"
         )
 
-        draw(dataset, trading_env.actions)
+        torch.save(model.state_dict, f"output/btcusdt_{interval}_{start}.pth")
+        if best_loss is None or loss < best_loss:
+            best_loss = loss
+            torch.save(
+                model.state_dict, f"output/btcusdt_{interval}_{start}_best_loss.pth"
+            )
+        if best_earnings is None or assets > best_earnings:
+            best_earnings = assets
+            torch.save(
+                model.state_dict, f"output/btcusdt_{interval}_{start}_best_earnings.pth"
+            )
 
-    if not os.path.exists("output"):
-        os.mkdir("output")
-    torch.save(model.state_dict, f"output/btcusdt_{interval}_{start}.pth")
+        draw(dataset, trading_env.actions)
 
 
 def draw(dataset, actions):
