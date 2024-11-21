@@ -14,6 +14,7 @@ class TradingEnv:
         self.sold_price = 0
         self.assets = 1
         self.assets_last = 1
+        self.actions = []
 
     def step(self, action_prob):
         # action - 0: buy 1: sell 2: hold
@@ -23,6 +24,8 @@ class TradingEnv:
             action_prob[0] = 0
 
         action = np.argmax(action_prob)
+
+        self.actions.append(action)
 
         reward = 0
 
