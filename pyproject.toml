@@ -12,6 +12,7 @@ okx = {git = "https://github.com/hlf20010508/okx.git"}
 pandas = "^2.2.3"
 ta-lib = "^0.5.1"
 torch = "^2.5.1"
+matplotlib = "^3.9.2"
 
 
 [build-system]

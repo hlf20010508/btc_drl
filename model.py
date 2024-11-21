@@ -14,12 +14,12 @@ class GRUPPO(nn.Module):
         super(GRUPPO, self).__init__()
 
         self.gru = nn.GRU(
-            input_dim, hidden_dim, num_layers, batch_first=True, dropout=dropout
+            input_dim + 4, hidden_dim, num_layers, batch_first=True, dropout=dropout
         )
         self.actor = nn.Linear(hidden_dim, action_dim)
         self.critic = nn.Linear(hidden_dim, 1)
 
-    def forward(self, x, hidden_state: torch.Tensor):
+    def forward(self, x: torch.Tensor, hidden_state: torch.Tensor):
         # x: (batch_size, seq_len, input_dim)
         # hidden_state: (num_layers, batch_size, hidden_dim)
         # x may not full fill the batch, so we need to slice the hidden state

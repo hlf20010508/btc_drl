@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 import os
 from model import GRUPPO
 from dataset import BTCDataset
@@ -26,9 +27,10 @@ def run(
     else:
         device = torch.device("cpu")
 
-    dataset = BTCDataset(seq_len, interval, start)
-    dataloader = DataLoader(dataset, batch_size=batch_size)
-    trading_env = TradingEnv(dataset.data["Close"])
+    dataset = BTCDataset(
+        seq_len, interval, start, features=["Open", "High", "Low", "Close", "Volume"]
+    )
+    trading_env = TradingEnv(dataset)
 
     input_dim = dataset.feature_num
 
@@ -39,35 +41,22 @@ def run(
         trading_env.reset()
         hidden_state = torch.zeros(num_layers, batch_size, hidden_dim).to(device)
 
-        for batch_x, _ in dataloader:
-            batch_x = batch_x.to(device)
+        for x, _ in trading_env:
+            x = x.unsqueeze(0).to(device)
 
-            action_probs, values, hidden_state = model(batch_x, hidden_state)
+            action_probs, value, hidden_state = model(x, hidden_state)
 
-            actions = torch.multinomial(action_probs, 1).squeeze(1)
+            action = torch.multinomial(action_probs, 1).item()
 
-            rewards = []
-            for action in actions:
-                reward, done, assets = trading_env.step(action.item())
-                rewards.append(reward)
+            reward, assets = trading_env.step(action)
 
-                if done:
-                    break
+            returns = torch.tensor([reward], dtype=torch.float32).to(device)
 
-            returns = []
-            G = 0
-            for r in reversed(rewards):
-                G = r + gamma * G
-                returns.insert(0, G)
-            returns = torch.tensor(returns, dtype=torch.float32).to(device)
+            advantage = returns - value.detach()
 
-            advantages = returns - values.detach()
-
-            log_probs = torch.log(
-                action_probs.gather(1, actions.unsqueeze(1)).squeeze(1)
-            )
-            policy_loss = -torch.mean(log_probs * advantages)
-            value_loss = torch.mean((returns - values) ** 2)
+            log_prob = torch.log(action_probs.squeeze(0)[action])
+            policy_loss = -log_prob * advantage
+            value_loss = (returns - value) ** 2
             loss = policy_loss + value_loss
 
             optimizer.zero_grad()
@@ -78,10 +67,38 @@ def run(
             f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Earnings: {(assets - 1) * 100:.2f}%"
         )
 
+        actions_slice = trading_env.actions
+        data_slice = dataset.data["Close"].values
+        buy_points = [
+            (i, data_slice[i])
+            for i in range(len(actions_slice))
+            if actions_slice[i] == 0
+        ]
+        sell_points = [
+            (i, data_slice[i])
+            for i in range(len(actions_slice))
+            if actions_slice[i] == 1
+        ]
+
+        plt.figure()
+        plt.plot(data_slice, label="price", zorder=1)
+        if buy_points:
+            buy_x, buy_y = zip(*buy_points)
+            plt.scatter(
+                buy_x, buy_y, color="green", label="Buy", marker="^", s=100, zorder=2
+            )
+        if sell_points:
+            sell_x, sell_y = zip(*sell_points)
+            plt.scatter(
+                sell_x, sell_y, color="red", label="Sell", marker="v", s=100, zorder=2
+            )
+        plt.legend()
+        plt.show()
+
     if not os.path.exists("output"):
         os.mkdir("output")
     torch.save(model.state_dict, f"output/btcusdt_{interval}_{start}.pth")
 
 
 if __name__ == "__main__":
-    run(epochs=2, batch_size=32, seq_len=7)
+    run(epochs=10, batch_size=128, seq_len=24)
