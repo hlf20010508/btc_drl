@@ -20,6 +20,7 @@ def run(
     learning_rate=0.001,
     gamma=0.99,
     features=[],
+    should_draw=False,
 ):
     if not os.path.exists("output"):
         os.mkdir("output")
@@ -95,7 +96,8 @@ def run(
                 model.state_dict, f"output/btcusdt_{interval}_{start}_best_earnings.pth"
             )
 
-        draw(dataset, trading_env.actions)
+        if should_draw:
+            draw(dataset, trading_env.actions)
 
 
 def draw(dataset, actions):
@@ -129,4 +131,5 @@ if __name__ == "__main__":
         batch_size=32,
         seq_len=7,
         features=["Open", "High", "Low", "Close", "Volume"],
+        should_draw=True,
     )
