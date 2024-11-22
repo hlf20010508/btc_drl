@@ -1,16 +1,17 @@
-from okx_data import download_data
-from finrl.config import INDICATORS
 from finrl.env_stocktrading import StockTradingEnv
+from finrl.config import INDICATORS
 from finrl.models import DRLAgent
-from stable_baselines3.common.logger import configure
+from okx_data import download_data
+from stable_baselines3 import A2C
+import matplotlib.pyplot as plt
 
 
 def run(
     interval="1H", start="2020-01-01", hmax=100, initial_amount=100, reward_scaling=1e-4
 ):
-    train_data, _ = download_data(interval, start)
+    _, backtrace_data = download_data(interval, start)
 
-    stock_dimension = len(train_data.tic.unique())
+    stock_dimension = len(backtrace_data.tic.unique())
     state_space = 1 + 2 * stock_dimension + len(INDICATORS) * stock_dimension
 
     buy_cost_list = sell_cost_list = [0.001] * stock_dimension
@@ -29,22 +30,21 @@ def run(
         "reward_scaling": reward_scaling,
     }
 
-    e_train_gym = StockTradingEnv(df=train_data, **env_kwargs)
-    env_train, _ = e_train_gym.get_sb_env()
+    e_trade_gym = StockTradingEnv(df=backtrace_data, **env_kwargs)
+    env_trade, obs_trade = e_trade_gym.get_sb_env()
 
-    agent = DRLAgent(env=env_train)
-    model = agent.get_model("a2c", model_kwargs={"device": "cpu"})
+    trained_a2c = A2C.load("output/a2c/agent", device="cpu")
 
-    tmp_path = "output/a2c"
-    new_logger_a2c = configure(tmp_path, ["stdout", "csv"])
-    # Set new logger
-    model.set_logger(new_logger_a2c)
-
-    trained_a2c = agent.train_model(
-        model=model, tb_log_name="a2c", total_timesteps=50000
+    df_account_value_a2c, df_actions_a2c = DRLAgent.DRL_prediction(
+        model=trained_a2c, environment=e_trade_gym
     )
 
-    trained_a2c.save("output/a2c/agent")
+    df_result_a2c = df_account_value_a2c.set_index(df_account_value_a2c.columns[0])
+
+    plt.figure()
+    plt.plot(df_result_a2c)
+    print(df_result_a2c)
+    plt.show()
 
 
 if __name__ == "__main__":

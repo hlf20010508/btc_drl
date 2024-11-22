@@ -8,7 +8,7 @@ from gymnasium import spaces
 from gymnasium.utils import seeding
 from stable_baselines3.common.vec_env import DummyVecEnv
 
-matplotlib.use("Agg")
+# matplotlib.use("Agg")
 
 
 class StockTradingEnv(gym.Env):
