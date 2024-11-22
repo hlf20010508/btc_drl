@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
+import torch.optim.lr_scheduler as lr_scheduler
 import os
 from model import GRUPPO
 from dataset import BTCDataset
@@ -52,6 +53,7 @@ def run(
             device
         )
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.5)
 
     best_loss = None
     best_earnings = None
@@ -92,6 +94,8 @@ def run(
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+        scheduler.step()
 
         print(
             f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Earnings: {(assets - 1) * 100:.2f}%, Fault Actions: {trading_env.actions.count(-1)} / {len(trading_env.actions)}"
