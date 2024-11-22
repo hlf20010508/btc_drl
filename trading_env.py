@@ -48,11 +48,12 @@ class TradingEnv:
                 ) / self.assets_initial
                 this_profit_rate = (self.assets - self.assets_last) / self.assets_last
                 reward = total_profit_rate + this_profit_rate
-                reward = self._limit_reward(reward)
+                reward = self._limit_reward(reward, 5)
 
                 self.position = 0
                 self.entry_price = 0
                 self.assets_last = self.assets
+                self.last_sold_price = current_price
             else:
                 self.actions.append(-1)
                 reward = -0.1
@@ -63,10 +64,16 @@ class TradingEnv:
 
             if self.position == 1:
                 reward = (current_price - self.entry_price) / self.entry_price
-                reward = self._adjust_hold_reward(reward)
-                reward = self._limit_reward(reward)
             else:
-                reward = 0
+                if self.last_sold_price > 0:
+                    reward = (
+                        self.last_sold_price - current_price
+                    ) / self.last_sold_price
+                else:
+                    reward = 0
+
+            reward = self._adjust_hold_reward(reward)
+            reward = self._limit_reward(reward, 1)
 
         self.current_step += 1
 
@@ -86,10 +93,10 @@ class TradingEnv:
 
         return reward
 
-    def _limit_reward(self, reward):
-        if reward > 5:
-            reward = 5
-        elif reward < -5:
-            reward = -5
+    def _limit_reward(self, reward, limit):
+        if reward > limit:
+            reward = limit
+        elif reward < -limit:
+            reward = -limit
 
         return reward
