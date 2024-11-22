@@ -110,7 +110,7 @@ def run(
             )
 
         if should_draw:
-            draw(dataset, trading_env.actions)
+            draw(dataset, trading_env.actions, title="Train")
 
         backtrace.run(
             batch_size=batch_size,

@@ -64,7 +64,7 @@ def run(
     print(f"Backtrace Earnings: {(assets - 1) * 100:.2f}%")
 
     if should_draw:
-        draw(dataset, trading_env.actions)
+        draw(dataset, trading_env.actions, title="Backtrace")
 
 
 if __name__ == "__main__":
