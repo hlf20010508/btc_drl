@@ -13,12 +13,17 @@ from features import (
 
 class BTCDataset(Dataset):
     def __init__(
-        self, seq_len: int, interval: str = "1H", start: str = "2020_01_01", features=[]
+        self,
+        seq_len: int,
+        interval: str = "1H",
+        start: str = "2020_01_01",
+        mode="train",  # train, backtrace
+        features=[],
     ):
-        self.data = self._load_data(interval, start)
+        self.seq_len = seq_len
+        self.data = self._load_data(interval, start, mode)
         self.scale_info = self._load_scale_info(interval, start)
         self._preprocess_data()
-        self.seq_len = seq_len
         if features:
             self.data = self.data.loc[:, features]
 
@@ -37,10 +42,23 @@ class BTCDataset(Dataset):
             y, dtype=torch.float32
         )
 
-    def _load_data(self, interval: str = "1H", start: str = "2020_01_01"):
+    def _load_data(self, interval: str = "1H", start: str = "2020_01_01", mode="train"):
         download_data(interval, start)
 
-        return pd.read_csv(f"data/btcusdt_{interval}_{start}.csv")
+        data = pd.read_csv(f"data/btcusdt_{interval}_{start}.csv")
+        data["Date"] = pd.to_datetime(data["Date"])
+
+        backtrace_start_time = "2024/04/30 16:00:00"
+        if mode == "train":
+            return data[data["Date"] < pd.Timestamp(backtrace_start_time)]
+        elif mode == "backtrace":
+            backtrace_idx = data[
+                data["Date"] >= pd.Timestamp(backtrace_start_time)
+            ].index[0]
+            start_idx = max(0, backtrace_idx - self.seq_len)
+            return data.iloc[start_idx:]
+        else:
+            raise ValueError("BTCDataset mode must be train or backtrace")
 
     def _load_scale_info(self, interval: str = "1H", start: str = "2020_01_01"):
         with open(f"data/btcusdt_{interval}_{start}_scale_info.json", "r") as f:

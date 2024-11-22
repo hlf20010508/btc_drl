@@ -42,11 +42,11 @@ def download_data(interval: str = "1H", start: str = "2020_01_01"):
     datetime_format = "%Y_%m_%d"
 
     path = f"data/btcusdt_{interval}_{start}.csv"
-    path_backtrace = f"data/btcusdt_{interval}_backtrace.csv"
+    # path_backtrace = f"data/btcusdt_{interval}_backtrace.csv"
     path_scale_info = f"data/btcusdt_{interval}_{start}_scale_info.json"
     if (
         not os.path.exists(path)
-        or not os.path.exists(path_backtrace)
+        # or not os.path.exists(path_backtrace)
         or not os.path.exists(path_scale_info)
     ):
         btc_data = get_market_data(
@@ -86,13 +86,15 @@ def download_data(interval: str = "1H", start: str = "2020_01_01"):
             json.dump(scale_info, f)
             print(f"Saved scale info to {path_scale_info}")
 
-        btc_backtest_data = btc_data[
-            btc_data["Date"] >= pd.Timestamp("2024/04/30 16:00:00")
-        ]
-        btc_backtest_data.to_csv(path_backtrace, index=False)
-        print(f"Saved backtrace data to {path}")
+        # btc_backtest_data = btc_data[
+        #     btc_data["Date"] >= pd.Timestamp("2024/04/30 16:00:00")
+        # ]
+        # btc_backtest_data.to_csv(path_backtrace, index=False)
+        # print(f"Saved backtrace data to {path}")
 
-        btc_data = btc_data[btc_data["Date"] < pd.Timestamp("2024/04/30 16:00:00")]
+        # btc_data = btc_data[btc_data["Date"] < pd.Timestamp("2024/04/30 16:00:00")]
+        # btc_data.to_csv(path, index=False)
+        # print(f"Saved data to {path}")
         btc_data.to_csv(path, index=False)
         print(f"Saved data to {path}")
     else:

@@ -4,7 +4,8 @@ import os
 from model import GRUPPO
 from dataset import BTCDataset
 from trading_env import TradingEnv
-import matplotlib.pyplot as plt
+import backtrace
+from draw import draw
 
 
 def run(
@@ -21,7 +22,11 @@ def run(
     gamma=0.99,
     features=[],
     should_draw=False,
-    trading_env=None,
+    should_draw_backtrace=False,
+    trading_env_class=TradingEnv,
+    dataset=None,
+    dataset_backtrace=None,
+    model=None,
 ):
     if not os.path.exists("output"):
         os.mkdir("output")
@@ -33,22 +38,26 @@ def run(
     else:
         device = torch.device("cpu")
 
-    dataset = BTCDataset(seq_len, interval, start, features)
+    if dataset is None:
+        dataset = BTCDataset(seq_len, interval, start, "train", features)
+    if dataset_backtrace is None:
+        dataset_backtrace = BTCDataset(seq_len, interval, start, "backtrace", features)
     dataloader = DataLoader(dataset, batch_size=batch_size)
-    if trading_env is None:
-        trading_env = TradingEnv(dataset.data["Close"][dataset.seq_len :])
-    else:
-        trading_env = trading_env(dataset.data["Close"][dataset.seq_len :])
+    trading_env = trading_env_class(dataset.data["Close"][dataset.seq_len :])
 
     input_dim = dataset.feature_num
 
-    model = GRUPPO(input_dim, hidden_dim, action_dim, num_layers, dropout).to(device)
+    if model is None:
+        model = GRUPPO(input_dim, hidden_dim, action_dim, num_layers, dropout).to(
+            device
+        )
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     best_loss = None
     best_earnings = None
 
     for epoch in range(epochs):
+        model.train()
         trading_env.reset()
         hidden_state = torch.zeros(num_layers, batch_size, hidden_dim).to(device)
 
@@ -85,7 +94,7 @@ def run(
             optimizer.step()
 
         print(
-            f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Earnings: {(assets - 1) * 100:.2f}%"
+            f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Earnings: {(assets - 1) * 100:.2f}%, Fault Actions: {trading_env.actions.count(-1)} / {len(trading_env.actions)}"
         )
 
         torch.save(model.state_dict, f"output/btcusdt_{interval}_{start}.pth")
@@ -103,30 +112,25 @@ def run(
         if should_draw:
             draw(dataset, trading_env.actions)
 
+        backtrace.run(
+            batch_size=batch_size,
+            seq_len=seq_len,
+            interval=interval,
+            start=start,
+            hidden_dim=hidden_dim,
+            action_dim=action_dim,
+            num_layers=num_layers,
+            dropout=dropout,
+            features=features,
+            should_draw=should_draw_backtrace,
+            trading_env_class=trading_env_class,
+            dataset=dataset_backtrace,
+            model=model,
+        )
 
-def draw(dataset, actions):
-    actions_slice = actions
-    data_slice = dataset.data["Close"][dataset.seq_len :].values
-    buy_points = [
-        (i, data_slice[i]) for i in range(len(actions_slice)) if actions_slice[i] == 0
-    ]
-    sell_points = [
-        (i, data_slice[i]) for i in range(len(actions_slice)) if actions_slice[i] == 1
-    ]
-    plt.figure()
-    plt.plot(data_slice, label="price", zorder=1)
-    if buy_points:
-        buy_x, buy_y = zip(*buy_points)
-        plt.scatter(
-            buy_x, buy_y, color="green", label="Buy", marker="^", s=100, zorder=2
-        )
-    if sell_points:
-        sell_x, sell_y = zip(*sell_points)
-        plt.scatter(
-            sell_x, sell_y, color="red", label="Sell", marker="v", s=100, zorder=2
-        )
-    plt.legend()
-    plt.show()
+    print(
+        f"Best Loss: {best_loss.item():.4f}, Best Earnings: {(best_earnings - 1) * 100:.2f}%"
+    )
 
 
 if __name__ == "__main__":
@@ -136,4 +140,5 @@ if __name__ == "__main__":
         seq_len=7,
         features=["Open", "High", "Low", "Close", "Volume"],
         should_draw=True,
+        should_draw_backtrace=True,
     )
