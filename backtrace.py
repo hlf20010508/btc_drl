@@ -7,7 +7,11 @@ import matplotlib.pyplot as plt
 
 
 def run(
-    interval="1H", start="2020-01-01", hmax=100, initial_amount=100, reward_scaling=1e-4
+    interval="1H",
+    start="2020-01-01",
+    hmax=100,
+    initial_amount=1000000,
+    reward_scaling=1e-4,
 ):
     _, backtrace_data = download_data(interval, start)
 
@@ -42,8 +46,7 @@ def run(
     df_result_a2c = df_account_value_a2c.set_index(df_account_value_a2c.columns[0])
 
     plt.figure()
-    plt.plot(df_result_a2c)
-    print(df_result_a2c)
+    plt.plot(df_result_a2c / 1000000)
     plt.show()
 
 

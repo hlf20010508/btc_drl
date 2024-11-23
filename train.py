@@ -6,7 +6,11 @@ from stable_baselines3.common.logger import configure
 
 
 def run(
-    interval="1H", start="2020-01-01", hmax=100, initial_amount=100, reward_scaling=1e-4
+    interval="1H",
+    start="2020-01-01",
+    hmax=100,
+    initial_amount=1000000,
+    reward_scaling=1e-4,
 ):
     train_data, _ = download_data(interval, start)
 
