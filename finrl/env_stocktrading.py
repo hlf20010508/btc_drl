@@ -1,14 +1,10 @@
-from __future__ import annotations
 import gymnasium as gym
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from gymnasium import spaces
 from gymnasium.utils import seeding
 from stable_baselines3.common.vec_env import DummyVecEnv
-
-# matplotlib.use("Agg")
 
 
 class StockTradingEnv(gym.Env):
