@@ -4,6 +4,7 @@ from model import GRUPPO
 from dataset import BTCDataset
 from trading_env import TradingEnv
 from draw import draw
+import pandas as pd
 
 
 def run(
@@ -20,13 +21,9 @@ def run(
     trading_env_class=TradingEnv,
     dataset=None,
     model=None,
+    device="cpu",
 ):
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    device = torch.device(device)
 
     if dataset is None:
         dataset = BTCDataset(seq_len, interval, start, "backtrace", features)
@@ -54,17 +51,29 @@ def run(
     for batch_x, _ in dataloader:
         batch_x = batch_x.to(device)
 
-        action_probs, values, hidden_state = model(batch_x, hidden_state)
+        action_probs, action_ratio, values, hidden_state = model(batch_x, hidden_state)
 
         actions = torch.multinomial(action_probs, 1).squeeze(1)
+        action_ratio = action_ratio.squeeze(1)
 
-        for action in actions:
-            _, assets = trading_env.step(action.item())
+        for action, ratio in zip(actions, action_ratio):
+            _, assets = trading_env.step(action.item(), ratio.item())
 
     print(f"Backtrace Earnings: {(assets - 1) * 100:.2f}%")
 
     if should_draw:
-        draw(dataset, trading_env.actions, title="Backtrace")
+        draw(dataset, trading_env.actions, trading_env.assets_all, title="Backtrace")
+
+    result = pd.DataFrame(
+        {
+            "date": dataset._load_data(mode="backtrace")["Date"].tolist()[
+                dataset.seq_len :
+            ],
+            "assets": trading_env.assets_all,
+        }
+    )
+
+    result.to_csv("output/backtrace.csv")
 
 
 if __name__ == "__main__":

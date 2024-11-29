@@ -28,16 +28,12 @@ def run(
     dataset=None,
     dataset_backtrace=None,
     model=None,
+    device="cpu",
 ):
     if not os.path.exists("output"):
         os.mkdir("output")
 
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
+    device = torch.device(device)
 
     if dataset is None:
         dataset = BTCDataset(seq_len, interval, start, "train", features)
@@ -66,13 +62,16 @@ def run(
         for batch_x, _ in dataloader:
             batch_x = batch_x.to(device)
 
-            action_probs, values, hidden_state = model(batch_x, hidden_state)
+            action_probs, action_ratio, values, hidden_state = model(
+                batch_x, hidden_state
+            )
 
             actions = torch.multinomial(action_probs, 1).squeeze(1)
+            action_ratio = action_ratio.squeeze(1)
 
             rewards = []
-            for action in actions:
-                reward, assets = trading_env.step(action.item())
+            for action, ratio in zip(actions, action_ratio):
+                reward, assets = trading_env.step(action.item(), ratio.item())
                 rewards.append(reward)
 
             returns = []
@@ -98,23 +97,24 @@ def run(
         scheduler.step()
 
         print(
-            f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Earnings: {(assets - 1) * 100:.2f}%, Fault Actions: {trading_env.actions.count(-1)} / {len(trading_env.actions)}"
+            f"Epoch {epoch + 1}/{epochs}, Loss: {loss.item():.4f}, Earnings: {(assets - 1) * 100:.2f}%"
         )
 
-        torch.save(model.state_dict, f"output/btcusdt_{interval}_{start}.pth")
+        torch.save(model.state_dict(), f"output/btcusdt_{interval}_{start}.pth")
         if best_loss is None or loss < best_loss:
             best_loss = loss
             torch.save(
-                model.state_dict, f"output/btcusdt_{interval}_{start}_best_loss.pth"
+                model.state_dict(), f"output/btcusdt_{interval}_{start}_best_loss.pth"
             )
         if best_earnings is None or assets > best_earnings:
             best_earnings = assets
             torch.save(
-                model.state_dict, f"output/btcusdt_{interval}_{start}_best_earnings.pth"
+                model.state_dict(),
+                f"output/btcusdt_{interval}_{start}_best_earnings.pth",
             )
 
         if should_draw:
-            draw(dataset, trading_env.actions, title="Train")
+            draw(dataset, trading_env.actions, trading_env.assets_all, title="Train")
 
         backtrace.run(
             batch_size=batch_size,
@@ -130,6 +130,7 @@ def run(
             trading_env_class=trading_env_class,
             dataset=dataset_backtrace,
             model=model,
+            device=device,
         )
 
     print(
@@ -139,10 +140,10 @@ def run(
 
 if __name__ == "__main__":
     run(
-        epochs=10,
+        epochs=5,
         batch_size=32,
-        seq_len=7,
-        features=["Open", "High", "Low", "Close", "Volume"],
+        seq_len=24 * 7,
+        # features=["Open", "High", "Low", "Close", "Volume"],
         should_draw=True,
         should_draw_backtrace=True,
     )

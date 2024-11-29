@@ -17,6 +17,9 @@ class GRUPPO(nn.Module):
             input_dim, hidden_dim, num_layers, batch_first=True, dropout=dropout
         )
         self.actor = nn.Linear(hidden_dim, action_dim)
+        self.action_ratio = nn.Linear(hidden_dim, 1)
+        self.sigmoid = nn.Sigmoid()
+
         self.critic = nn.Linear(hidden_dim, 1)
 
     def forward(self, x, hidden_state: torch.Tensor):
@@ -27,6 +30,9 @@ class GRUPPO(nn.Module):
             x, hidden_state.detach()[:, : x.size(0), :].contiguous()
         )
         out = out[:, -1, :]
+
         action_probs = torch.softmax(self.actor(out), dim=-1)
+        action_ratio = self.sigmoid(self.action_ratio(out))
+
         value = self.critic(out)
-        return action_probs, value, hidden_state
+        return action_probs, action_ratio, value, hidden_state

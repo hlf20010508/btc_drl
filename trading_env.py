@@ -1,102 +1,130 @@
+import numpy as np
+
+
 class TradingEnv:
     def __init__(self, data, transaction_cost=0.001):
         self.data = data
         self.transaction_cost = transaction_cost
+        self.assets_window_size = 4000
+        self.trading_window_size = 24
+        self.trading_frequency = 5
+        self.min_transaction_usdt = 0.01
         self.reset()
 
     def reset(self):
-        self.current_step = 0
-        self.position = 0
-        self.entry_price = 0
-        self.assets = 1
-        self.assets_initial = self.assets
-        self.assets_last = self.assets
         self.actions = []
-        self.hold_steps = 0
-        self.last_sold_price = 0
+        self.current_step = 0
+        self.btc = 0
+        self.usdt = 1
+        self.assets_window = [self.usdt]
+        self.assets_all = []
+        self.assets_initial = self.usdt
 
-    def step(self, action):
+    @property
+    def assets(self):
+        current_price = self.data.iloc[self.current_step]
+
+        return self.usdt + self.btc * current_price
+
+    def step(self, action, ratio):
         # action - 0: buy 1: sell 2: hold
-        reward = 0
-
         current_price = self.data.iloc[self.current_step]
 
         if action == 0:
-            if self.position == 0:
-                # buy only when not in position
-                self.actions.append(action)
-                self.hold_steps = 0
+            if self._check_frequency():
+                bought = self.usdt * ratio * (1 - self.transaction_cost)
 
-                self.position = 1
-                self.entry_price = current_price
-                self.assets = (1 - self.transaction_cost) * self.assets
-                reward = 0
+                if bought >= self.min_transaction_usdt:
+                    self.actions.append(action)
+
+                    self.usdt = self.usdt * (1 - ratio)
+                    self.btc += bought / current_price
+                    self._move_assets_window()
+
+                    reward = 0
+                else:
+                    self.actions.append(-1)
+
+                    reward = -1
             else:
                 self.actions.append(-1)
-                reward = -0.1
+                reward = -1
 
         elif action == 1:
-            if self.position == 1:
-                # sell only when in position
-                self.actions.append(action)
-                self.hold_steps = 0
+            if self._check_frequency():
+                if self.btc > 0:
+                    sold = self.btc * ratio * (1 - self.transaction_cost)
+                    if sold >= self.min_transaction_usdt:
+                        self.actions.append(action)
 
-                self._update_assets()
+                        self.btc = self.btc * (1 - ratio)
+                        self.usdt += sold * current_price
+                        self._move_assets_window()
 
-                total_profit_rate = (
-                    self.assets - self.assets_initial
-                ) / self.assets_initial
-                this_profit_rate = (self.assets - self.assets_last) / self.assets_last
-                reward = total_profit_rate + this_profit_rate
-                reward = self._limit_reward(reward, 5)
+                        reward = self._calc_reward()
+                    else:
+                        self.actions.append(-1)
 
-                self.position = 0
-                self.entry_price = 0
-                self.assets_last = self.assets
-                self.last_sold_price = current_price
+                        reward = -1
+                else:
+                    self.actions.append(-1)
+                    self._move_assets_window()
+
+                    reward = -1
             else:
                 self.actions.append(-1)
-                reward = -0.1
+
+                reward = -1
 
         elif action == 2:
             self.actions.append(action)
-            self.hold_steps += 1
 
-            if self.position == 1:
-                reward = (current_price - self.entry_price) / self.entry_price
-            else:
-                if self.last_sold_price > 0:
-                    reward = (
-                        self.last_sold_price - current_price
-                    ) / self.last_sold_price
-                else:
-                    reward = 0
+            self._move_assets_window()
 
-            reward = self._adjust_hold_reward(reward)
-            reward = self._limit_reward(reward, 1)
+            reward = 0
+
+        assets = self.assets
+        self.assets_all.append(assets)
 
         self.current_step += 1
 
-        return reward, self.assets
+        return reward, assets
 
-    def _update_assets(self):
+    def _move_assets_window(self):
+        self.assets_window.append(self.assets)
+        self.assets_window = self.assets_window[-self.assets_window_size :]
+        self.assets_initial = self.assets_window[0]
+
+    def _check_frequency(self):
+        trading_window = self.actions[-self.trading_window_size :]
+        if trading_window.count(0) + trading_window.count(1) < self.trading_frequency:
+            return True
+        else:
+            return False
+
+    def _calc_reward(self):
         current_price = self.data.iloc[self.current_step]
+        start_price = self.data.iloc[self.current_step - self.assets_window_size]
 
-        self.assets = (
-            self.assets / self.entry_price * current_price * (1 - self.transaction_cost)
+        total_profit_rate = (self.assets - self.assets_initial) / self.assets_initial
+        market_profit_rate = (current_price - start_price) / start_price
+
+        # sortino ratio
+        diff = total_profit_rate - market_profit_rate
+
+        reward = diff / self.downside_deviation()
+
+        return reward
+
+    def downside_deviation(self, target_return=0):
+        assets_window = np.array(self.assets_window)
+
+        downside_diff = np.maximum(
+            0,
+            target_return
+            - (assets_window[1:] - assets_window[:-1]) / assets_window[:-1],
         )
 
-    def _adjust_hold_reward(self, reward):
-        threshold = 24 * 7
-        if self.hold_steps > threshold:
-            reward -= (self.hold_steps - threshold) * 0.1
+        downside_dev = np.sqrt(np.mean(downside_diff**2))
 
-        return reward
-
-    def _limit_reward(self, reward, limit):
-        if reward > limit:
-            reward = limit
-        elif reward < -limit:
-            reward = -limit
-
-        return reward
+        return downside_dev
